@@ -1,5 +1,7 @@
 /*
-  Simple XpressNet sniffer for ESP8266
+
+
+  Simple XpressNet sniffer for Arduino MEGA or ESP8266/ESP32
 
 
 */
@@ -11,12 +13,13 @@
 // -----------------------------------------------------------
 // My XpressNet address
 #define XNetAddress 30
-// RS485 TX pin 
-#define XNetRS485_TX 4 
-// RS485 RX pin
-#define XNetRS485_RX 2
-//RS485 send/receive pin
-#define XNetRS485_TXRX 5
+
+#if defined(ESP8266) | defined(ESP32)
+#define XNetPort D7			//Serial TX/RX 
+#define XNet_TXRX D8		//send/receive pin
+#else
+#define XNet_TXRX 9		//send/receive pin	
+#endif
 
 XpressNetClass XpressNet;
 
@@ -24,9 +27,17 @@ void setup()
 {
   // debug output
   Serial.begin(115200);
+  Serial.println();
+  Serial.println("XpressNet Sniffer");
+  pinMode(BUILTIN_LED, OUTPUT);
 
-  XpressNet.start(XNetAddress, XNetRS485_TXRX);
- XpressNet.setPower(csNormal);
+  #if defined(ESP8266) | defined(ESP32)
+	XpressNet.start(XNetAddress, XNetPort, XNet_TXRX);
+  #else
+	XpressNet.start(XNetAddress, XNet_TXRX);
+  #endif
+	  
+  XpressNet.setPower(csNormal);
 
 }
 
@@ -37,7 +48,7 @@ void loop()
 
 void notifyXNetStatus (uint8_t State)
 {
-  // digitalWrite(led, State);
+  digitalWrite(BUILTIN_LED, State);
 }
 
 //--------------------------------------------------------------------------------------------

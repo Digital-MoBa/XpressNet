@@ -45,7 +45,11 @@ XpressNetClass::XpressNetClass()
 }
 
 //******************************************Serial*******************************************
-void XpressNetClass::start(byte XAdr, int XControl)  //Initialisierung Serial
+#if defined(ESP8266) || (ESP32)
+void XpressNetClass::start(byte XAdr, uint8_t XNetSerial_Port, uint8_t XControl)  //Initialisierung Serial
+#else
+void XpressNetClass::start(byte XAdr, uint8_t XControl)  //Initialisierung Serial
+#endif
 {
 	ledState = LOW;       // Status LED, used to set the LED
 	previousMillis = 0;		//Reset Time Count
@@ -64,7 +68,15 @@ void XpressNetClass::start(byte XAdr, int XControl)  //Initialisierung Serial
 	myDirectedOps = callByteParity (MY_ADDRESS | 0x60) | 0x100; 
 
 	#if defined(ESP8266) || (ESP32)
-	XNetSerial.begin(62500, SWSERIAL_8S1, XNetSerial_RX, XNetSerial_TX, false, 95); //parity mode SPACE
+	XNetSerial.begin(62500, SWSERIAL_8S1, XNetSerial_Port, XNetSerial_Port, false, 95); //One Wire Half Duplex Serial, parity mode SPACE
+	if (!XNetSerial) { // If the object did not initialize, then its configuration is invalid
+		Serial.println("Invalid SoftwareSerial pin configuration, check config"); 
+		while (1) { // Don't continue with invalid configuration
+		delay (1000);
+		}
+	} 
+	// high speed half duplex, turn off interrupts during tx
+	XNetSerial.enableIntTx(false);
 	#else
 		//Set up on 62500 Baud
 		cli();  //disable interrupts while initializing the USART
@@ -304,8 +316,7 @@ void XpressNetClass::receive(void)
 				boolean Busy = false;
 				if (bitRead(XNetMsg[XNetdata1], 3) == 1)
 					Busy = true;
-				uint8_t Speed = XNetMsg[XNetdata2];		//RVVV VVVV - R=Richtung; V=Geschwindigkeit
-				bitWrite(Speed, 7, 0);	//Richtungs bit löschen
+				uint8_t Speed = XNetMsg[XNetdata2] & 0x7F;		//RVVV VVVV - R=Richtung; V=Geschwindigkeit
 				uint8_t Direction = false;
 				if (bitRead(XNetMsg[XNetdata2], 7) == 1)
 					Direction = true;
@@ -332,19 +343,23 @@ void XpressNetClass::receive(void)
 				byte Adr_LSB = XNetMsg[XNetdata3]; 
 				byte Slot = xLokStsgetSlot(Adr_MSB, Adr_LSB);
 				switch (XNetMsg[XNetdata1]) {
-					case 0x10: xLokSts[Slot].speed = XNetMsg[XNetdata4];//14 Speed steps
+					case 0x10: xLokSts[Slot].speed = XNetMsg[XNetdata4] & 0x7F;//14 Speed steps
+								bitWrite(xLokSts[Slot].f0, 5, bitRead(XNetMsg[XNetdata4], 7));
 							   getLocoStateFull(Adr_MSB, Adr_LSB, true);		
 								break;
-					case 0x11: xLokSts[Slot].speed = XNetMsg[XNetdata4];//27 Speed steps
+					case 0x11: xLokSts[Slot].speed = XNetMsg[XNetdata4] & 0x7F;//27 Speed steps
+								bitWrite(xLokSts[Slot].f0, 5, bitRead(XNetMsg[XNetdata4], 7));
 								getLocoStateFull(Adr_MSB, Adr_LSB, true);
 								break;
-					case 0x12: xLokSts[Slot].speed = XNetMsg[XNetdata4];//28 Speed steps	
+					case 0x12: xLokSts[Slot].speed = XNetMsg[XNetdata4] & 0x7F;//28 Speed steps	
+								bitWrite(xLokSts[Slot].f0, 5, bitRead(XNetMsg[XNetdata4], 7));
 								getLocoStateFull(Adr_MSB, Adr_LSB, true);
 								break;
-					case 0x13: xLokSts[Slot].speed = XNetMsg[XNetdata4];//128 Speed steps
+					case 0x13: xLokSts[Slot].speed = XNetMsg[XNetdata4] & 0x7F;//128 Speed steps
+								bitWrite(xLokSts[Slot].f0, 5, bitRead(XNetMsg[XNetdata4], 7));
 								getLocoStateFull(Adr_MSB, Adr_LSB, true);
 								break;	
-					case 0x20: xLokSts[Slot].f0 = XNetMsg[XNetdata4];//Fkt Group1			
+					case 0x20: xLokSts[Slot].f0 = (xLokSts[Slot].f0 & 0x20 ) | (XNetMsg[XNetdata4] & 0x1F);//Fkt Group1	- Attention keep Direction Bit!		
 								getLocoStateFull(Adr_MSB, Adr_LSB, true);
 								break;
 					case 0x21: xLokSts[Slot].f1 = (XNetMsg[XNetdata4] & 0x0F) | (xLokSts[Slot].f1 & 0xF0);//Fkt Group2			
@@ -758,7 +773,7 @@ void XpressNetClass::getLocoStateFull (byte Adr_High, byte Adr_Low, bool bc)
 	byte F2 = xLokSts[Slot].f2;
 	byte F3 = xLokSts[Slot].f3;
 		if (notifyLokAll)
-			notifyLokAll(Adr_High, Adr_Low, Busy, xLokSts[Slot].mode & B11, xLokSts[Slot].speed, Dir, F0, F1, F2, F3, bc);
+			notifyLokAll(Adr_High, Adr_Low, Busy, xLokSts[Slot].mode & B11, xLokSts[Slot].speed & 0x7F, Dir, F0, F1, F2, F3, bc);
 	//Nutzung protokollieren:
 	if (xLokSts[Slot].state < 0xFF)
 		xLokSts[Slot].state++;		//aktivität
@@ -1091,15 +1106,24 @@ void XpressNetClass::XNetsend(void)
 void XpressNetClass::XNetsend(unsigned char *dataString, byte byteCount) {
    unsigned int i;
    digitalWrite (MAX485_CONTROL, HIGH);
-//   delayMicroseconds(3);
+   #if defined(ESP8266) || defined(ESP32)
+   XNetSerial.enableTx(true);
+   #endif
+
    for (i=0; i< byteCount; i++) {
      USART_Transmit (*dataString);
      dataString ++;
 	}
+	
    #if defined(__AVR__)	
    WAIT_FOR_XMIT_COMPLETE;
+   #else
+   delayMicroseconds(10);
    #endif
    digitalWrite (MAX485_CONTROL, LOW);
+   #if defined(ESP8266) || defined(ESP32)
+   XNetSerial.enableTx(false);
+   #endif
 } 
 
 

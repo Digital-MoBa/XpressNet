@@ -1,9 +1,9 @@
 /*
   XpressNet.h - library for XpressNet protocoll
-  Copyright (c) 2013-2021 Philipp Gahtow  All right reserved.
+  Copyright (c) 2013-2022 Philipp Gahtow  All right reserved.
   for Private use only!
 
-  Version 2.7 (31.01.2022)
+  Version 2.7.1 (31.01.2022)
 
   Notice:
   Works until now, only with XPressNet Version 3.0 or higher!
@@ -21,7 +21,7 @@
   18.04.2020 Philipp Gahtow - fix long Address from 100 on!
   26.08.2021 Philipp Gahtow - add E4 commands and detect all messages with seperate stack
   19.11.2021 Philipp Gahtow - add new function to set LokFunc in packets; fix E4 commands return fault loco adr and func;
-  31.01.2022 Philipp Gahtow - add Support with Software Serial on ESP8266 and ESP32 (https://github.com/plerup/espsoftwareserial)
+  31.01.2022 Philipp Gahtow - add Support with use of Software Serial for ESP8266 and ESP32 (https://github.com/plerup/espsoftwareserial)
 */
 
 // ensure this library description is only included once
@@ -54,8 +54,7 @@
 #undef SERIAL_PORT_0
 
 #elif defined(ESP8266) || (ESP32)		//ESP8266 and ESP32 Support
-#define XNetSerial_RX	D7
-#define XNetSerial_TX	D8
+#define XNetSerial_Default	D7
 
 #else //others Arduino UNO
 #define SERIAL_PORT_0
@@ -127,7 +126,11 @@ class XpressNetClass
   // user-accessible "public" interface
   public:
     XpressNetClass(void);	//Constuctor
-	void start(byte XAdr, int XControl);  //Initialisierung Serial
+	#if defined(ESP8266) || (ESP32)
+	void start(byte XAdr, uint8_t XNetSerial_Port, uint8_t XControl);  //Initialisierung Serial
+	#else
+	void start(byte XAdr, uint8_t XControl);  //Initialisierung Serial
+	#endif
 	void receive(void);				//Prüfe ob XNet Packet vorhanden und werte es aus.
 
 	bool setPower(byte Power);		//Zustand Gleisspannung Melden
