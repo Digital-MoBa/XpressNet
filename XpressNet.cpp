@@ -20,7 +20,7 @@
 XpressNetClass *XpressNetClass::active_object = 0;	//Static
 #endif
 
-#if defined(ESP8266) || (ESP32)		//ESP8266 and ESP32 Support
+#if defined(ESP8266) || defined(ESP32)		//ESP8266 and ESP32 Support
 #include <SoftwareSerial.h>
 SoftwareSerial XNetSerial;
 #endif
@@ -45,7 +45,7 @@ XpressNetClass::XpressNetClass()
 }
 
 //******************************************Serial*******************************************
-#if defined(ESP8266) || (ESP32)
+#if defined(ESP8266) || defined(ESP32)
 void XpressNetClass::start(byte XAdr, uint8_t XNetSerial_Port, uint8_t XControl)  //Initialisierung Serial
 #else
 void XpressNetClass::start(byte XAdr, uint8_t XControl)  //Initialisierung Serial
@@ -67,7 +67,7 @@ void XpressNetClass::start(byte XAdr, uint8_t XControl)  //Initialisierung Seria
 	myCallByteInquiry = callByteParity (MY_ADDRESS | 0x40) | 0x100;
 	myDirectedOps = callByteParity (MY_ADDRESS | 0x60) | 0x100; 
 
-	#if defined(ESP8266) || (ESP32)
+	#if defined(ESP8266) || defined(ESP32)
 	XNetSerial.begin(62500, SWSERIAL_8S1, XNetSerial_Port, XNetSerial_Port, false, 95); //One Wire Half Duplex Serial, parity mode SPACE
 	if (!XNetSerial) { // If the object did not initialize, then its configuration is invalid
 		Serial.println("Invalid SoftwareSerial pin configuration, check config"); 
@@ -119,7 +119,7 @@ void XpressNetClass::start(byte XAdr, uint8_t XControl)  //Initialisierung Seria
 //Daten ermitteln und Auswerten
 void XpressNetClass::receive(void) 
 {
-	#if defined(ESP8266) || (ESP32)
+	#if defined(ESP8266) || defined(ESP32)
 		XNetget();
 	#endif
 	/*

@@ -14,7 +14,7 @@
 // My XpressNet address
 #define XNetAddress 30
 
-#if defined(ESP8266) | defined(ESP32)
+#if defined(ESP8266) || defined(ESP32)
 #define XNetPort D7			//Serial TX/RX 
 #define XNet_TXRX D8		//send/receive pin
 #else
@@ -31,7 +31,7 @@ void setup()
   Serial.println("XpressNet Sniffer");
   pinMode(BUILTIN_LED, OUTPUT);
 
-  #if defined(ESP8266) | defined(ESP32)
+  #if defined(ESP8266) || defined(ESP32)
 	XpressNet.start(XNetAddress, XNetPort, XNet_TXRX);
   #else
 	XpressNet.start(XNetAddress, XNet_TXRX);
