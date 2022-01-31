@@ -1,7 +1,7 @@
 /*
 *****************************************************************************
   *		XpressNet.h - library for a client XpressNet protocoll
-  *		Copyright (c) 2015-2021 Philipp Gahtow  All right reserved.
+  *		Copyright (c) 2015-2022 Philipp Gahtow  All right reserved.
   *
   **	 Free for Private usage only!	
 *****************************************************************************
@@ -14,11 +14,18 @@
 
 // include this library's description file
 #include "XpressNet.h"
+
+#if defined(__AVR__)
 #include <avr/interrupt.h>
+XpressNetClass *XpressNetClass::active_object = 0;	//Static
+#endif
+
+#if defined(ESP8266) || (ESP32)		//ESP8266 and ESP32 Support
+#include <SoftwareSerial.h>
+SoftwareSerial XNetSerial;
+#endif
 
 #define interval 10500      //interval for Status LED (milliseconds)
-
-XpressNetClass *XpressNetClass::active_object = 0;	//Static
 
 // Constructor /////////////////////////////////////////////////////////////////
 // Function that handles the creation and setup of instances
@@ -56,37 +63,41 @@ void XpressNetClass::start(byte XAdr, int XControl)  //Initialisierung Serial
 	myCallByteInquiry = callByteParity (MY_ADDRESS | 0x40) | 0x100;
 	myDirectedOps = callByteParity (MY_ADDRESS | 0x60) | 0x100; 
 
-	//Set up on 62500 Baud
-	cli();  //disable interrupts while initializing the USART
-	#if defined(SERIAL_PORT)
-	 UBRRH = 0;
-	 UBRRL = 0x0F;
-	 UCSRA = 0;
-	 UCSRB = (1<<RXEN) | (1<<TXEN) | (1<<RXCIE) | (1<<UCSZ2);
-	 UCSRC = (1<<UCSZ1) | (1<<UCSZ0);
-	#elif defined(SERIAL_PORT_0)
-	 UBRR0H = 0;
-	 UBRR0L = 0x0F;
-	 UCSR0A = 0;
-	 UCSR0B = (1<<RXEN0) | (1<<TXEN0) | (1<<RXCIE0) | (1<<UCSZ02);
-	 UCSR0C = (1<<UCSZ01) | (1<<UCSZ00);
-	 #elif defined(SERIAL_PORT_1)
-	 UBRR1H = 0;
-	 UBRR1L = 0x0F;
-	 UCSR1A = 0;
-	 UCSR1B = (1<<RXEN1) | (1<<TXEN1) | (1<<RXCIE1) | (1<<UCSZ12);
-	 UCSR1C = (1<<UCSZ11) | (1<<UCSZ10);
-	 #endif
-	sei(); // Enable the Global Interrupt Enable flag so that interrupts can be processed 
-	 /*
-	 *  Enable reception (RXEN = 1).
-	 *  Enable transmission (TXEN0 = 1). 
-	 *	Enable Receive Interrupt (RXCIE = 1).
-	 *  Set 8-bit character mode (UCSZ00, UCSZ01, and UCSZ02 together control this, 
-	 *  But UCSZ00, UCSZ01 are in Register UCSR0C).
-	 */
-	
-	active_object = this;		//hold Object to call it back in ISR
+	#if defined(ESP8266) || (ESP32)
+	XNetSerial.begin(62500, SWSERIAL_8S1, XNetSerial_RX, XNetSerial_TX, false, 95); //parity mode SPACE
+	#else
+		//Set up on 62500 Baud
+		cli();  //disable interrupts while initializing the USART
+		#if defined(SERIAL_PORT)
+		 UBRRH = 0;
+		 UBRRL = 0x0F;
+		 UCSRA = 0;
+		 UCSRB = (1<<RXEN) | (1<<TXEN) | (1<<RXCIE) | (1<<UCSZ2);
+		 UCSRC = (1<<UCSZ1) | (1<<UCSZ0);
+		#elif defined(SERIAL_PORT_0)
+		 UBRR0H = 0;
+		 UBRR0L = 0x0F;
+		 UCSR0A = 0;
+		 UCSR0B = (1<<RXEN0) | (1<<TXEN0) | (1<<RXCIE0) | (1<<UCSZ02);
+		 UCSR0C = (1<<UCSZ01) | (1<<UCSZ00);
+		 #elif defined(SERIAL_PORT_1)
+		 UBRR1H = 0;
+		 UBRR1L = 0x0F;
+		 UCSR1A = 0;
+		 UCSR1B = (1<<RXEN1) | (1<<TXEN1) | (1<<RXCIE1) | (1<<UCSZ12);
+		 UCSR1C = (1<<UCSZ11) | (1<<UCSZ10);
+		 #endif
+		sei(); // Enable the Global Interrupt Enable flag so that interrupts can be processed 
+		 /*
+		 *  Enable reception (RXEN = 1).
+		 *  Enable transmission (TXEN0 = 1). 
+		 *	Enable Receive Interrupt (RXCIE = 1).
+		 *  Set 8-bit character mode (UCSZ00, UCSZ01, and UCSZ02 together control this, 
+		 *  But UCSZ00, UCSZ01 are in Register UCSR0C).
+		 */
+		 
+		active_object = this;		//hold Object to call it back in ISR
+	#endif
 }
 
 // Public Methods //////////////////////////////////////////////////////////////
@@ -96,6 +107,9 @@ void XpressNetClass::start(byte XAdr, int XControl)  //Initialisierung Serial
 //Daten ermitteln und Auswerten
 void XpressNetClass::receive(void) 
 {
+	#if defined(ESP8266) || (ESP32)
+		XNetget();
+	#endif
 	/*
 	XNetMsg[XNetlength] = 0x00;
 	XNetMsg[XNetmsg] = 0x00;
@@ -852,63 +866,78 @@ byte XpressNetClass::callByteParity (byte me) {
 //--------------------------------------------------------------------------------------------
 int XpressNetClass::USART_Receive(void)
 {
-	unsigned char status, resh, resl;
-	// Wait for data to be received
-#if defined(SERIAL_PORT)
-	status = UCSRA;
-	while (!(status & (1 << RXC))) { return -1; }//status = UCSRA;}
+	#if defined(ESP8266) || defined(ESP32)
+	if (XNetSerial.available()) {      // If anything comes in Serial
+		uint16_t data = XNetSerial.read();
+		if (XNetSerial.readParity()) {   //detect parity bit set on the last message (MARK parity)
+			data = data | 0x100;
+		}
+		return data;
+	}
+	else return -1;
+	#else
+		unsigned char status, resh, resl;
+		// Wait for data to be received
+		#if defined(SERIAL_PORT)
+			status = UCSRA;
+			while (!(status & (1 << RXC))) { return -1; }//status = UCSRA;}
 
-	// Get status and 9th bit, then data
-	resh = UCSRB;
-	resl = UDR;
+			// Get status and 9th bit, then data
+			resh = UCSRB;
+			resl = UDR;
 
-	// If error, return -1 
-	if (status & ((1 << FE) | (1 << DOR) | (1 << PE))) { return -1; }
+			// If error, return -1 
+			if (status & ((1 << FE) | (1 << DOR) | (1 << PE))) { return -1; }
 
-#elif defined(SERIAL_PORT_0)
-	status = UCSR0A;
-	while (!(status & (1 << RXC0))) { return -1; }//status = UCSR0A;}
+		#elif defined(SERIAL_PORT_0)
+			status = UCSR0A;
+			while (!(status & (1 << RXC0))) { return -1; }//status = UCSR0A;}
 
-	// Get status and 9th bit, then data
-	resh = UCSR0B;
-	resl = UDR0;
+			// Get status and 9th bit, then data
+			resh = UCSR0B;
+			resl = UDR0;
 
-	//If error, return -1 
-	if (status & ((1 << FE0) | (1 << DOR0) | (1 << UPE0))) { return -1; }
+			//If error, return -1 
+			if (status & ((1 << FE0) | (1 << DOR0) | (1 << UPE0))) { return -1; }
 
-#elif defined(SERIAL_PORT_1)
-	status = UCSR1A;
-	while (!(status & (1 << RXC1))) { return -1; }//status = UCSR1A;}
+		#elif defined(SERIAL_PORT_1)
+			status = UCSR1A;
+			while (!(status & (1 << RXC1))) { return -1; }//status = UCSR1A;}
 
-	// Get status and 9th bit, then data 
-	resh = UCSR1B;
-	resl = UDR1;
+			// Get status and 9th bit, then data 
+			resh = UCSR1B;
+			resl = UDR1;
 
-	// If error, return -1
-	if (status & ((1 << FE1) | (1 << DOR1) | (1 << UPE1))) { return -1; }
-#endif
+			// If error, return -1
+			if (status & ((1 << FE1) | (1 << DOR1) | (1 << UPE1))) { return -1; }
+		#endif
 
-	// Filter the 9th bit, then return 
-	resh = (resh >> 1) & 0x01;
-	return ((resh << 8) | resl);
+		// Filter the 9th bit, then return 
+		resh = (resh >> 1) & 0x01;
+		return ((resh << 8) | resl);
+	#endif
 }
 
 //--------------------------------------------------------------------------------------------
 void XpressNetClass::USART_Transmit(unsigned char data8) {
- // wait for empty transmit buffer
- #if defined(SERIAL_PORT)
-  while (!(UCSRA & (1<<UDRE))) {}
- // put the data into buffer, and send 
- UDR = data8;
- #elif defined(SERIAL_PORT_0)
-  while (!(UCSR0A & (1<<UDRE0))) {}
- // put the data into buffer, and send 
- UDR0 = data8;
- #elif defined(SERIAL_PORT_1)
- while (!(UCSR1A & (1<<UDRE1))) {}
- // put the data into buffer, and send
- UDR1 = data8;
- #endif
+	#if defined(ESP8266) || defined(ESP32)
+	XNetSerial.write(data8); //we didn't want to MARK = SWSERIAL_PARITY_MARK
+	#else
+		 // wait for empty transmit buffer
+		 #if defined(SERIAL_PORT)
+		  while (!(UCSRA & (1<<UDRE))) {}
+		 // put the data into buffer, and send 
+		 UDR = data8;
+		 #elif defined(SERIAL_PORT_0)
+		  while (!(UCSR0A & (1<<UDRE0))) {}
+		 // put the data into buffer, and send 
+		 UDR0 = data8;
+		 #elif defined(SERIAL_PORT_1)
+		 while (!(UCSR1A & (1<<UDRE1))) {}
+		 // put the data into buffer, and send
+		 UDR1 = data8;
+		 #endif
+	#endif	 
 }
 
 //--------------------------------------------------------------------------------------------
@@ -925,34 +954,36 @@ void XpressNetClass::XNetclear()
 	XNetMsg[XNetdata5] = 0x00;
 }
 
-//--------------------------------------------------------------------------------------------
-//Interrupt routine for reading via Serial
-#if defined(SERIAL_PORT)
-ISR(USART_RX_vect)  {
-	XpressNetClass::handle_interrupt();	 //weiterreichen an die Funktion
-}
+#if defined(__AVR__)
+	//--------------------------------------------------------------------------------------------
+	//Interrupt routine for reading via Serial
+	#if defined(SERIAL_PORT)
+	ISR(USART_RX_vect)  {
+		XpressNetClass::handle_interrupt();	 //weiterreichen an die Funktion
+	}
 
-#elif defined(SERIAL_PORT_0)
-ISR(USART_RX_vect) {
-	XpressNetClass::handle_interrupt();	 //weiterreichen an die Funktion
-}
+	#elif defined(SERIAL_PORT_0)
+	ISR(USART_RX_vect) {
+		XpressNetClass::handle_interrupt();	 //weiterreichen an die Funktion
+	}
 
-#elif defined(SERIAL_PORT_1)
-ISR(USART1_RX_vect) {
-	XpressNetClass::handle_interrupt();	 //weiterreichen an die Funktion
-}
+	#elif defined(SERIAL_PORT_1)
+	ISR(USART1_RX_vect) {
+		XpressNetClass::handle_interrupt();	 //weiterreichen an die Funktion
+	}
+	#endif
+
+
+	// Interrupt handling
+	/* static */
+	inline void XpressNetClass::handle_interrupt()
+	{
+	  if (active_object)
+	  {
+		active_object->XNetget();	//Daten Einlesen und Speichern
+	  }
+	}
 #endif
-
-
-// Interrupt handling
-/* static */
-inline void XpressNetClass::handle_interrupt()
-{
-  if (active_object)
-  {
-    active_object->XNetget();	//Daten Einlesen und Speichern
-  }
-}
 
 //--------------------------------------------------------------------------------------------
 //Serial einlesen:
@@ -1065,7 +1096,9 @@ void XpressNetClass::XNetsend(unsigned char *dataString, byte byteCount) {
      USART_Transmit (*dataString);
      dataString ++;
 	}
+   #if defined(__AVR__)	
    WAIT_FOR_XMIT_COMPLETE;
+   #endif
    digitalWrite (MAX485_CONTROL, LOW);
 } 
 

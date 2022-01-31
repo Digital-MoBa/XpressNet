@@ -3,7 +3,7 @@
   Copyright (c) 2013-2021 Philipp Gahtow  All right reserved.
   for Private use only!
 
-  Version 2.6 (19.11.2021)
+  Version 2.7 (31.01.2022)
 
   Notice:
   Works until now, only with XPressNet Version 3.0 or higher!
@@ -21,6 +21,7 @@
   18.04.2020 Philipp Gahtow - fix long Address from 100 on!
   26.08.2021 Philipp Gahtow - add E4 commands and detect all messages with seperate stack
   19.11.2021 Philipp Gahtow - add new function to set LokFunc in packets; fix E4 commands return fault loco adr and func;
+  31.01.2022 Philipp Gahtow - add Support with Software Serial on ESP8266 and ESP32 (https://github.com/plerup/espsoftwareserial)
 */
 
 // ensure this library description is only included once
@@ -51,6 +52,10 @@
 #elif defined(__AVR_ATmega1284P__) || defined(__AVR_ATmega644P__)  //Sanguino (other pins!)
 #define SERIAL_PORT_1
 #undef SERIAL_PORT_0
+
+#elif defined(ESP8266) || (ESP32)		//ESP8266 and ESP32 Support
+#define XNetSerial_RX	D7
+#define XNetSerial_TX	D8
 
 #else //others Arduino UNO
 #define SERIAL_PORT_0
