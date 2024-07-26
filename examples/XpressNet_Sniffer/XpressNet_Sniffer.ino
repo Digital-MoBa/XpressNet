@@ -29,7 +29,7 @@ void setup()
   Serial.begin(115200);
   Serial.println();
   Serial.println("XpressNet Sniffer");
-  pinMode(BUILTIN_LED, OUTPUT);
+  pinMode(LED_BUILTIN, OUTPUT);
 
   #if defined(ESP8266) || defined(ESP32)
 	XpressNet.start(XNetAddress, XNetPort, XNet_TXRX);
@@ -48,7 +48,7 @@ void loop()
 
 void notifyXNetStatus (uint8_t State)
 {
-  digitalWrite(BUILTIN_LED, State);
+  digitalWrite(LED_BUILTIN, State);
 }
 
 //--------------------------------------------------------------------------------------------
