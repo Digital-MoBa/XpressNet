@@ -1,9 +1,9 @@
 /*
   XpressNet.h - library for XpressNet protocoll
-  Copyright (c) 2013-2022 Philipp Gahtow  All right reserved.
+  Copyright (c) 2013-2024 Philipp Gahtow  All right reserved.
   for Private use only!
 
-  Version 2.7.1 (31.01.2022)
+  Version 2.7.2 (27.07.2024)
 
   Notice:
   Works until now, only with XPressNet Version 3.0 or higher!
@@ -16,12 +16,13 @@
 							- fix in setTrntPos Adr convert
 							- fix narrow conversations in arrays
   28.04.2017 Philipp Gahtow - optimize ram usage in callByteParity							
-  23.07.2017 Philipp Gahtow - add changes for WLANMaus made by André Schenk
+  23.07.2017 Philipp Gahtow - add changes for WLANMaus made by AndrÃ© Schenk
   20.10.2017 Philipp Gahtow - add BC for "Schaltinformation"
   18.04.2020 Philipp Gahtow - fix long Address from 100 on!
   26.08.2021 Philipp Gahtow - add E4 commands and detect all messages with seperate stack
   19.11.2021 Philipp Gahtow - add new function to set LokFunc in packets; fix E4 commands return fault loco adr and func;
   31.01.2022 Philipp Gahtow - add Support with use of Software Serial for ESP8266 and ESP32 (https://github.com/plerup/espsoftwareserial)
+  27.01.2024 Philipp Gahtow - add Support Leonardo
 */
 
 // ensure this library description is only included once
@@ -85,7 +86,7 @@
 #define csServiceMode 0x20 // Der Programmiermodus ist aktiv - Service Mode
 
 //XpressNet Befehl, jedes gesendete Byte
-#define XNetlength	0		//Länge
+#define XNetlength	0		//LÃ¤nge
 #define XNetmsg		1		//Message
 #define XNetcom		2		//Kennung/Befehl
 #define XNetdata1	3		//Databyte1
@@ -110,13 +111,13 @@ typedef struct	//Lokdaten	(Lok Events)
 
 /* Slotliste Loks */
 #define XSendMax 16			//Maximalanzahl der Datenpakete im Sendebuffer
-#define SlotMax 15			//Slots für Lokdaten
+#define SlotMax 15			//Slots fÃ¼r Lokdaten
 #define SlotInterval 200	//Zeitintervall zur Aktualisierung der Slots (ms)
 #define XSendMaxData 8		//Anzahl Elemente im Datapaket Array XSend
 
 typedef struct	//Antwort/Abfragespeicher
 {
-	uint8_t length;			//Speicher für Datenlänge
+	uint8_t length;			//Speicher fÃ¼r DatenlÃ¤nge
 	byte data[XSendMaxData];	//zu sendende Daten
 } XSend;
 
@@ -131,13 +132,13 @@ class XpressNetClass
 	#else
 	void start(byte XAdr, uint8_t XControl);  //Initialisierung Serial
 	#endif
-	void receive(void);				//Prüfe ob XNet Packet vorhanden und werte es aus.
+	void receive(void);				//PrÃ¼fe ob XNet Packet vorhanden und werte es aus.
 
 	bool setPower(byte Power);		//Zustand Gleisspannung Melden
 	byte getPower();		//Zusand Gleisspannung geben
 	void setHalt();			//Zustand Halt Melden
 	bool getLocoInfo (byte Adr_High, byte Adr_Low);	//Abfragen der Lokdaten (mit F0 bis F12)
-	bool getLocoFunc (byte Adr_High, byte Adr_Low);	//Abfragen der Lok Funktionszustände F13 bis F28
+	bool getLocoFunc (byte Adr_High, byte Adr_Low);	//Abfragen der Lok FunktionszustÃ¤nde F13 bis F28
 	bool setLocoHalt (byte Adr_High, byte Adr_Low);	//Lok anhalten
 	bool setLocoDrive (byte Adr_High, byte Adr_Low, uint8_t Steps, uint8_t Speed); //Lokdaten setzten
 	bool setLocoFunc (byte Adr_High, byte Adr_Low, uint8_t type, uint8_t fkt);	//Lokfunktion setzten
@@ -146,7 +147,7 @@ class XpressNetClass
 	bool setFunc9to12(uint16_t Adr, uint8_t G3);	//Gruppe 3: 0 0 0 0 F12 F11 F10 F9
 	bool setFunc13to20(uint16_t Adr, uint8_t G4); 	//Gruppe 4: F20 F19 F18 F17 F16 F15 F14 F13  
 	bool setFunc21to28(uint16_t Adr, uint8_t G5); 	//Gruppe 5: F28 F27 F26 F25 F24 F23 F22 F21  
-	void getLocoStateFull (byte Adr_High, byte Adr_Low, bool Anfrage);  //Gibt Zustand der Lok zurück.
+	void getLocoStateFull (byte Adr_High, byte Adr_Low, bool Anfrage);  //Gibt Zustand der Lok zurÃ¼ck.
 	bool getTrntInfo (byte FAdr_High, byte FAdr_Low);		//Ermitteln der Schaltstellung einer Weiche
 	bool setTrntPos (byte FAdr_High, byte FAdr_Low, byte Pos);		//Schalten einer Weiche
 	//Programming:
@@ -169,49 +170,49 @@ class XpressNetClass
 	unsigned int myCallByteInquiry;	// the address we look for for our Call Byte Window
 	unsigned int myRequestAck;		// the address for a request acknowlegement sent
 	uint8_t XNetMsg[8];		//Daten wurden empfangen
-	bool DataReady;				//Daten können verarbeitet werden
+	bool DataReady;				//Daten kÃ¶nnen verarbeitet werden
 	uint8_t XNetMsgTemp[8];		//Serial receive (Length, Message, Command, Data1 to Data5)
 	bool ReadData;				//Empfangene Serial Daten: (Speichern = true/Komplett = false)
 	static XpressNetClass *active_object;	//aktuelle aktive Object 
 	void XNetget(void);			//Empfangene Daten eintragen 
 	XSend XNetSend[XSendMax];		//Sendbuffer
-	XNetLok xLokSts[SlotMax];		//Speicher für aktive Lokzustände
+	XNetLok xLokSts[SlotMax];		//Speicher fÃ¼r aktive LokzustÃ¤nde
 
 		//Functions:
 	void getXOR (unsigned char *data, byte length); // calculate the XOR
 	byte callByteParity (byte me);	// calculate the parity bit
 	int USART_Receive( void );	//Serial Empfangen
 	void USART_Transmit (unsigned char data8); //Serial Senden
-	void XNetclear(void);		//Serial Nachricht zurücksetzten
+	void XNetclear(void);		//Serial Nachricht zurÃ¼cksetzten
 
 	void sendSchaltinfo(bool schaltinfo, byte data1, byte data2);  //Aufbereiten der Schaltinformation
 	
 	void XNetclearSendBuf();	//Sendbuffer leeren
-	boolean XNetSendadd(unsigned char *dataString, byte byteCount);	//Zum Sendebuffer Hinzufügen
+	boolean XNetSendadd(unsigned char *dataString, byte byteCount);	//Zum Sendebuffer HinzufÃ¼gen
 	void XNetsend(void); //Send Saved Data aus Sendebuffer
 	void XNetsend(unsigned char *dataString, byte byteCount);	//Sende Daten aus Array
 
 		//Adressrequest:
-	int ReqLocoAdr;		//Adresse für die Lok Daten angefragt wurden
+	int ReqLocoAdr;		//Adresse fÃ¼r die Lok Daten angefragt wurden
 	int ReqLocoAgain;
-	int ReqFktAdr;		//Adresse für die F2 und F3 angefragt wurde
+	int ReqFktAdr;		//Adresse fÃ¼r die F2 und F3 angefragt wurde
 
 		//SlotServer:
 	long SlotTime;		//store last time the Slot ask
 	int SlotLast;		//letzter bearbeiteter Slot
-	void UpdateBusySlot(void);	//Fragt Zentrale nach aktuellen Zuständen
-	void xLokStsclear (void); //löscht alle Slots
-	bool xLokStsadd (byte MSB, byte LSB, byte Mode, byte Speed, byte FktSts);	//Eintragen Änderung / neuer Slot XLok
-	bool xLokStsFunc0 (byte MSB, byte LSB, byte Func);	//Eintragen Änderung / neuer Slot XFunc0
-	bool xLokStsFunc1 (byte MSB, byte LSB, byte Func1);	//Eintragen Änderung / neuer Slot XFunc1
-	bool xLokStsFunc23 (byte MSB, byte LSB, byte Func2, byte Func3);	//Eintragen Änderung / neuer Slot XFunc23
+	void UpdateBusySlot(void);	//Fragt Zentrale nach aktuellen ZustÃ¤nden
+	void xLokStsclear (void); //lÃ¶scht alle Slots
+	bool xLokStsadd (byte MSB, byte LSB, byte Mode, byte Speed, byte FktSts);	//Eintragen Ã„nderung / neuer Slot XLok
+	bool xLokStsFunc0 (byte MSB, byte LSB, byte Func);	//Eintragen Ã„nderung / neuer Slot XFunc0
+	bool xLokStsFunc1 (byte MSB, byte LSB, byte Func1);	//Eintragen Ã„nderung / neuer Slot XFunc1
+	bool xLokStsFunc23 (byte MSB, byte LSB, byte Func2, byte Func3);	//Eintragen Ã„nderung / neuer Slot XFunc23
 	bool xLokStsBusy (byte Slot); //Busy Bit Abfragen
 	void XLokStsSetBusy (byte MSB, byte LSB);		//Lok Busy setzten
-	byte xLokStsgetSlot (byte MSB, byte LSB);		//gibt Slot für Adresse zurück / erzeugt neuen Slot (0..126)
-	int xLokStsgetAdr (byte Slot);			//gibt Lokadresse des Slot zurück, wenn 0x0000 dann keine Lok vorhanden
-	bool xLokStsIsEmpty (byte Slot);	//prüft ob Datenpacket/Slot leer ist?
+	byte xLokStsgetSlot (byte MSB, byte LSB);		//gibt Slot fÃ¼r Adresse zurÃ¼ck / erzeugt neuen Slot (0..126)
+	int xLokStsgetAdr (byte Slot);			//gibt Lokadresse des Slot zurÃ¼ck, wenn 0x0000 dann keine Lok vorhanden
+	bool xLokStsIsEmpty (byte Slot);	//prÃ¼ft ob Datenpacket/Slot leer ist?
 	void xLokStsSetNew (byte Slot, byte MSB, byte LSB);	//Neue Lok eintragen mit Adresse
-	byte getNextSlot (byte Slot);	//gibt nächsten genutzten Slot
+	byte getNextSlot (byte Slot);	//gibt nÃ¤chsten genutzten Slot
 
 	//Spannung und GO/STOP Events:
 	byte Railpower;	  //Gleisspannung
