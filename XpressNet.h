@@ -45,7 +45,7 @@
 //Maybe we are running on a MEGA chip with more than 1 port? If so, you
 //can put the serial port to port 1, and use the port 0 for status messages
 //to your PC.
-#if defined(__AVR_ATmega1280__) || defined(__AVR_ATmega2560__) //Arduino MEGA
+#if defined(__AVR_ATmega1280__) || defined(__AVR_ATmega2560__) || defined(__AVR_ATmega32U4__) //Arduino MEGA, Leonardo
 #define SERIAL_PORT_1
 #undef SERIAL_PORT_0
 
